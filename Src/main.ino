@@ -50,10 +50,10 @@ MyState s = State_calibrate;
 // Prototype
 void imuInit();
 void calibrate();
-static bool feedgps();
 float distance2goal();
 float direction2goal();
 float calcAzimuth();
+void writeSD();
 
 // Valiables
 char report[80];
@@ -77,6 +77,11 @@ float compAngleX, compAngleY; // Calculated angle using a complementary filter
 float kalAngleX, kalAngleY; // Calculated angle using a Kalman filter
 
 uint32_t timer;
+
+// Timer Interrupt setting
+hw_timer_t * h_timer = NULL;
+volatile SemaphoreHandle_t timerSemaphore;
+portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 
 //Velocity
 float velX, velY, velZ = 0;
@@ -107,6 +112,7 @@ void setup(){
   pinMode(led1, OUTPUT);
   pinMode(led2, OUTPUT);
 
+  timerInit();
   imuInit();
   sp.beep();
 
@@ -114,14 +120,9 @@ void setup(){
 }
 
 void loop(){
-  uint32_t start = millis();
-  uint32_t end = start;
-
   switch(s){
     case State_calibrate:
       calibrate();
-      while(!feedgps()) Serial.print("#");
-      Serial.println("GPS fixed!!!");
       s = State_test;
       break;
     case State_launch:
@@ -137,12 +138,6 @@ void loop(){
     case State_test:
       //passedKalmanFilter();
       //calcAzimuth();
-      start = millis();
-      writeSD();
-      end = millis() - start;
-      Serial.print(end);
-      Serial.println(" ms");
-      delay(1000);
       break;
     default:
       // code block
@@ -152,11 +147,36 @@ void loop(){
   delay(100);
 }
 
-static bool feedgps(){
-  while(ss.available()){
-    if(gps.encode(ss.read())) return true;
-  }
-  return false;
+void IRAM_ATTR onTimer(){
+  // Increment the counter and set the time or ISR
+  portENTER_CRITICAL_ISR(&timerMux);
+
+  // Interrupt function
+  writeSD();
+
+  portEXIT_CRITICAL_ISR(&timerMux);
+  // Give a semaphore that we can check in the loop
+  xSemaphoreGiveFromISR(timerSemaphore, NULL);
+  // It is safe to use dititalRead/Write here if you want to toggle an output
+}
+
+void timerInit(){
+  // Create semaphore to inform us when the timer has fired
+  timerSemaphore = xSemaphoreCreateBinary();
+
+  // Use 1st timer of 4 (counted from zero).
+  // Set 80 divider for prescaler (see ESP32 Technical Refernce Manual for more info).
+  h_timer = timerBegin(0, 80, true);
+
+  // Attach onTimer function to our timer.
+  timerAttachInterrupt(h_timer, &onTimer, true);
+
+  // Set alarm to call onTimer function every second (value in microseconds).
+  // Repeat the alarm (third parameter)
+  timerAlarmWrite(h_timer, 1000000, true);
+
+  // Start an alarm
+  timerAlarmEnable(h_timer);
 }
 
 void imuInit(){
@@ -350,43 +370,39 @@ float calcAzimuth(){
 }
 
 void move2goal(){
-  while(ss.available() > 0){
-    char c = ss.read();
-    gps.encode(c);
-    if(gps.location.isUpdated()){
+  while(ss.available() > 0)
+    gps.encode(ss.read());
 
-    #ifdef DEBUG
-      Serial.print("Lat: "); Serial.print(gps.location.lat(), 6);
-      Serial.print("\t");
-      Serial.print("Lng: "); Serial.print(gps.location.lng(), 6);
-      Serial.print("\t");
-    #endif
+#ifdef DEBUG
+  Serial.print("Lat: "); Serial.print(gps.location.lat(), 6);
+  Serial.print("\t");
+  Serial.print("Lng: "); Serial.print(gps.location.lng(), 6);
+  Serial.print("\t");
+#endif
 
-      m1.stop();
-      m2.stop();
-      delay(1000);
-      float direction = 0; // In the direction of CanSat
-      for(int i=0; i<COUNT_NUM; i++){
-        direction += calcAzimuth();
-        delay(10);
-      }
-      direction = direction / COUNT_NUM; // Calculate direction average
-      if(direction > 180) direction = 180;
-      if(direction < -180) direction = -180;
-      if(direction > 90){
-        m1.cw(200);
-        m2.cw(200);
-      } else if(direction < -90){
-        m1.ccw(200);
-        m2.ccw(200);
-      } else{
-        m1.cw(200);
-        m2.ccw(200);
-        delay(750);
-      }
-      delay(250);
-    }
+  m1.stop();
+  m2.stop();
+  delay(1000);
+  float direction = 0; // In the direction of CanSat
+  for(int i=0; i<COUNT_NUM; i++){
+    direction += calcAzimuth();
+    delay(10);
   }
+  direction = direction / COUNT_NUM; // Calculate direction average
+  if(direction > 180) direction = 180;
+  if(direction < -180) direction = -180;
+  if(direction > 90){
+    m1.cw(200);
+    m2.cw(200);
+  } else if(direction < -90){
+    m1.ccw(200);
+    m2.ccw(200);
+  } else{
+    m1.cw(200);
+    m2.ccw(200);
+    delay(750);
+  }
+  delay(250);
 }
 
 void led(uint8_t led, uint8_t state){
@@ -400,6 +416,8 @@ void writeSD(){
   float theta = calcAzimuth();
   float pressure = ps.readPressureMillibars();
   float temperature = ps.readTemperatureC();
+  while(ss.available() > 0)
+    gps.encode(ss.read());
 
   String str = "";
   str += millis();            str += ",";
