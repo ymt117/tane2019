@@ -11,6 +11,6 @@ Release date: 2019-02-27<br>
 
  - [LSP](https://github.com/pololu/lps-arduino)
 
- - [TinyGPS](https://github.com/mikalhart/TinyGPS)
+ - [TinyGPS](http://arduiniana.org/libraries/tinygpsplus/)
 
  - [KalmanFilter](https://github.com/TKJElectronics/KalmanFilter)
