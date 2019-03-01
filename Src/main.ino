@@ -13,7 +13,7 @@
 #error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
 #endif
 
-#define DEBUG
+//#define DEBUG
 //#define BTSERIAL 
 #define COUNT_NUM 100
 #define ON 1
@@ -112,7 +112,9 @@ void setup(){
   pinMode(led1, OUTPUT);
   pinMode(led2, OUTPUT);
 
-  timerInit();
+  // タイマー割り込みでmicroSD書き込みプログラムを実行する場合，リブートを繰り返してうまくいかない
+  // microSD書き込みプログラムの実行時間が長い（20ms~80ms程度）のが原因か
+  //timerInit();
   imuInit();
   sp.beep();
 
@@ -123,6 +125,7 @@ void loop(){
   switch(s){
     case State_calibrate:
       calibrate();
+      writeSD();
       s = State_test;
       break;
     case State_launch:
@@ -138,6 +141,8 @@ void loop(){
     case State_test:
       //passedKalmanFilter();
       //calcAzimuth();
+      move2goal();
+      //writeSD();
       break;
     default:
       // code block
@@ -153,6 +158,7 @@ void IRAM_ATTR onTimer(){
 
   // Interrupt function
   writeSD();
+  Serial.println("interrupt");
 
   portEXIT_CRITICAL_ISR(&timerMux);
   // Give a semaphore that we can check in the loop
@@ -362,7 +368,7 @@ float calcAzimuth(){
   //Serial.print(roll * RAD_TO_DEG);
   //Serial.print("\t");
   //Serial.print(pitch * RAD_TO_DEG);
-  Serial.print("\t");
+  //Serial.print("\t");
   Serial.println(theta);
 #endif
 
@@ -379,30 +385,50 @@ void move2goal(){
   Serial.print("Lng: "); Serial.print(gps.location.lng(), 6);
   Serial.print("\t");
 #endif
+  while(calcAzimuth() > 90){
+    m1.ccw(200);
+    m2.ccw(200);
+    delay(50);
+    //Serial.println("aaa");
+  }
+  while(calcAzimuth() < -90){
+    m1.cw(200);
+    m2.cw(200);
+    delay(50);
+    //Serial.println("bbb");
+  }
+  //Serial.println("ccc");
+  Serial.println(calcAzimuth());
+  m1.stop();
+  m2.stop();
+  delay(20);
 
+/*
   m1.stop();
   m2.stop();
   delay(1000);
   float direction = 0; // In the direction of CanSat
   for(int i=0; i<COUNT_NUM; i++){
     direction += calcAzimuth();
-    delay(10);
+    //delay(10);
   }
   direction = direction / COUNT_NUM; // Calculate direction average
   if(direction > 180) direction = 180;
   if(direction < -180) direction = -180;
+  Serial.println(direction);
   if(direction > 90){
-    m1.cw(200);
-    m2.cw(200);
-  } else if(direction < -90){
     m1.ccw(200);
     m2.ccw(200);
-  } else{
+  } else if(direction < -90){
     m1.cw(200);
-    m2.ccw(200);
+    m2.cw(200);
+  } else{
+    m1.ccw(200);
+    m2.cw(200);
     delay(750);
   }
   delay(250);
+*/
 }
 
 void led(uint8_t led, uint8_t state){
