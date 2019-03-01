@@ -13,9 +13,11 @@
 #error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
 #endif
 
-//#define DEBUG
+#define DEBUG
 //#define BTSERIAL 
 #define COUNT_NUM 100
+#define ON 1
+#define OFF 0
 
 LPS ps;
 LIS3MDL mag;
@@ -58,6 +60,8 @@ char report[80];
 static const uint32_t GPSBaud = 9600;
 static const uint8_t heat1 = 33;
 static const uint8_t heat2 = 32;
+static const uint8_t led1 = 2;
+static const uint8_t led2 = 15;
 /* 
  * g_lat, g_lng：目標地点の緯度，経度
  * 競技開始前に計測して入力しておくこと
@@ -89,9 +93,10 @@ void setup(){
   Serial.begin(115200);
   Serial.println("Hello 100kinSAT!!!");
 #ifdef BTSERIAL
-  SerialBT.begin("100kinSAT");
+  SerialBT.begin("Hello 100kinSAT111");
 #endif
   sd.writeFile(SD, "/hello.txt", "Hello 100kinSAT\n");
+  sd.writeFile(SD, "/log.csv", "millis,year,month,day,hour,minute,second,state,lat,lng,ax,ay,az,comax,comay,comaz,gx,gy,gz,mx,my,mz,pre,tmp,roll,pitch,distance2goal,direction2goal,direction,m1,m2\n");
   Wire.begin();
   ss.begin(GPSBaud);
 
@@ -99,6 +104,8 @@ void setup(){
   pinMode(heat2, OUTPUT);
   digitalWrite(heat1, LOW);
   digitalWrite(heat2, LOW);
+  pinMode(led1, OUTPUT);
+  pinMode(led2, OUTPUT);
 
   imuInit();
   sp.beep();
@@ -107,6 +114,9 @@ void setup(){
 }
 
 void loop(){
+  uint32_t start = millis();
+  uint32_t end = start;
+
   switch(s){
     case State_calibrate:
       calibrate();
@@ -125,6 +135,14 @@ void loop(){
     case State_goal:
       break;
     case State_test:
+      //passedKalmanFilter();
+      //calcAzimuth();
+      start = millis();
+      writeSD();
+      end = millis() - start;
+      Serial.print(end);
+      Serial.println(" ms");
+      delay(1000);
       break;
     default:
       // code block
@@ -252,21 +270,21 @@ void passedKalmanFilter(){
   //Serial.print(velX); Serial.print("\t");
   //Serial.print(velY); Serial.print("\t");
   //Serial.print(velZ); Serial.print("\t");
-  //Serial.print(comAccX); Serial.print("\t");
-  //Serial.print(comAccY); Serial.print("\t");
-  //Serial.print(comAccZ); Serial.print("\t");
+  Serial.print(comAccX); Serial.print("\t");
+  Serial.print(comAccY); Serial.print("\t");
+  Serial.print(comAccZ); Serial.print("\t");
 
   Serial.print(roll); Serial.print("\t");
   //Serial.print(gyroXangle); Serial.print("\t");
   //Serial.print(compAngleX); Serial.print("\t");
-  //Serial.print(kalAngleX); Serial.print("\t");
+  Serial.print(kalAngleX); Serial.print("\t");
 
   Serial.print("\t");
 
   Serial.print(pitch); Serial.print("\t");
   //Serial.print(gyroYangle); Serial.print("\t");
   //Serial.print(compAngleY); Serial.print("\t");
-  //Serial.print(kalAngleY); Serial.print("\t");
+  Serial.print(kalAngleY); Serial.print("\t");
 
   //Serial.print("\r\n");
 
@@ -284,6 +302,7 @@ float direction2goal(){
 
 void calibrate(){
   Serial.print("Calibrate ");
+  led(led1, ON);
   for(int i=0; i<10000; i++){
     Serial.print(".");
     mag.read();
@@ -297,6 +316,7 @@ void calibrate(){
     running_max.z = _max(running_max.z, mag.m.z);
   }
   Serial.println(" done");
+  led(led1, OFF);
   // Calculate offset value
   magXoff = (running_max.x + running_min.x) / 2;
   magYoff = (running_max.y + running_min.y) / 2;
@@ -307,6 +327,10 @@ float calcAzimuth(){
   imu.read();
   mag.read();
 
+  accX = imu.a.x;
+  accY = imu.a.y;
+  accZ = imu.a.z;
+
   float roll = atan2(accY, accZ);
   float pitch = atan(-accX / sqrt(accY * accY + accZ * accZ));
 
@@ -314,7 +338,14 @@ float calcAzimuth(){
   float denom = (mag.m.x-magXoff)*cos(pitch)+(mag.m.y-magYoff)*sin(pitch)*sin(roll)+(mag.m.z-magZoff)*sin(pitch)*cos(roll);
   float theta = atan2(numer, denom) * RAD_TO_DEG;
 
+#ifdef DEBUG
+  //Serial.print(roll * RAD_TO_DEG);
+  //Serial.print("\t");
+  //Serial.print(pitch * RAD_TO_DEG);
+  Serial.print("\t");
   Serial.println(theta);
+#endif
+
   return theta;
 }
 
@@ -358,7 +389,57 @@ void move2goal(){
   }
 }
 
-// Display AltIMU sensor value
+void led(uint8_t led, uint8_t state){
+  if(state == ON) digitalWrite(led, HIGH);
+  if(state == OFF) digitalWrite(led, LOW);
+}
+
+void writeSD(){
+  char buf[1024];
+  passedKalmanFilter();
+  float theta = calcAzimuth();
+  float pressure = ps.readPressureMillibars();
+  float temperature = ps.readTemperatureC();
+
+  String str = "";
+  str += millis();            str += ",";
+  str += gps.date.year();     str += ",";
+  str += gps.date.month();    str += ",";
+  str += gps.date.day();      str += ",";
+  str += gps.time.hour();     str += ",";
+  str += gps.time.minute();   str += ",";
+  str += gps.time.second();   str += ",";
+  str += s;                   str += ",";
+  str += gps.location.lat();  str += ",";
+  str += gps.location.lng();  str += ",";
+  str += imu.a.x;             str += ",";
+  str += imu.a.y;             str += ",";
+  str += imu.a.z;             str += ",";
+  str += comAccX;             str += ",";
+  str += comAccY;             str += ",";
+  str += comAccZ;             str += ",";
+  str += imu.g.x;             str += ",";
+  str += imu.g.y;             str += ",";
+  str += imu.g.z;             str += ",";
+  str += mag.m.x;             str += ",";
+  str += mag.m.y;             str += ",";
+  str += mag.m.z;             str += ",";
+  str += pressure;            str += ",";
+  str += temperature;         str += ",";
+  str += kalAngleX;           str += ",";
+  str += kalAngleY;           str += ",";
+  str += distance2goal();     str += ",";
+  str += direction2goal();    str += ",";
+  str += theta;
+  str += "\n";
+
+  int len = str.length();
+  str.toCharArray(buf, len+1);
+
+  sd.appendFile(SD, "/log.csv", buf);
+}
+
+// Display IMU sensor value
 void imu_test(){
   float pressure = ps.readPressureMillibars();
   mag.read();
