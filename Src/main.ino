@@ -62,6 +62,7 @@ static const uint8_t heat1 = 33;
 static const uint8_t heat2 = 32;
 static const uint8_t led1 = 2;
 static const uint8_t led2 = 15;
+static const uint8_t flightPin = 34;
 /* 
  * g_lat, g_lng：目標地点の緯度，経度
  * 競技開始前に計測して入力しておくこと
@@ -94,6 +95,12 @@ const float alpha = 0.8; // lowpassfilter
 
 float magXoff, magYoff, magZoff = 0;
 
+// flag for judge landing
+bool flag_flightPin = false;
+bool flag_pressure = false;
+bool flag_acceleration = false;
+bool flag_timer = false;
+
 void setup(){
   Serial.begin(115200);
   Serial.println("Hello 100kinSAT!!!");
@@ -111,6 +118,7 @@ void setup(){
   digitalWrite(heat2, LOW);
   pinMode(led1, OUTPUT);
   pinMode(led2, OUTPUT);
+  pinMode(flightPin, INPUT);
 
   // タイマー割り込みでmicroSD書き込みプログラムを実行する場合，リブートを繰り返してうまくいかない
   // microSD書き込みプログラムの実行時間が長い（20ms~80ms程度）のが原因か
@@ -224,6 +232,36 @@ void imuInit(){
   compAngleY = pitch;
 
   timer = micros();
+}
+
+void goal(){
+  char buf[512];
+  while(ss.available() > 0)
+    gps.encode(ss.read());
+
+  // Rename log.csv to log-year-month-day-hour-minute-second.csv
+  String str = "";
+  str += "/log-";
+  str += gps.date.year();   str += "-";
+  str += gps.date.month();  str += "-";
+  str += gps.date.day();    str += "-";
+  str += gps.time.hour();   str += "-";
+  str += gps.time.minute(); str += "-";
+  str += gps.time.second(); str += ".csv";
+
+  int len = str.length();
+  str.toCharArray(buf, len+1);
+
+  sd.renameFile(SD, "/log.csv", buf);
+
+  while(1){
+    led(led1, ON);
+    led(led2, OFF);
+    delay(1000);
+    led(led1, OFF);
+    led(led2, ON);
+    delay(1000);
+  }
 }
 
 void passedKalmanFilter(){
@@ -373,6 +411,18 @@ float calcAzimuth(){
 #endif
 
   return theta;
+}
+
+void judgeLanding(){
+  // Use flight pin
+  if(digitalRead(flightPin)){
+    flag_flightPin = true;
+  }
+  // Use pressure
+
+  // Use acceleration
+
+  // Use timer
 }
 
 void move2goal(){
