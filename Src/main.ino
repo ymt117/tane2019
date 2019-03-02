@@ -237,6 +237,16 @@ void imuInit(){
   timer = micros();
 }
 
+void heat(uint8_t pin, int ms){
+  if(pin == heat1 || pin == heat2){
+    digitalWrite(pin, HIGH);
+    delay(ms);
+    digitalWrite(pin, LOW);
+  } else{
+    Serial.printf("%d is not set a pin for heating wires.\n", pin);
+  }
+}
+
 void goal(){
   char buf[512];
   while(ss.available() > 0)
