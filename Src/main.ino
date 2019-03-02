@@ -120,7 +120,7 @@ void setup(){
   pinMode(led2, OUTPUT);
   pinMode(flightPin, INPUT);
 
-  // タイマー割り込みでmicroSD書き込みプログラムを実行する場合，リブートを繰り返してうまくいかない
+  // タイマー割り込みでmicroSD書き込みプログラムを実行する場合，リブートを繰り返してうまくいかないので使用しない
   // microSD書き込みプログラムの実行時間が長い（20ms~80ms程度）のが原因か
   //timerInit();
   imuInit();
@@ -143,8 +143,11 @@ void loop(){
     case State_heat:
       break;
     case State_comeback:
+      move2goal();
+      writeSD();
       break;
     case State_goal:
+      goal();
       break;
     case State_test:
       //passedKalmanFilter();
