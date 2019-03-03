@@ -156,10 +156,9 @@ void loop(){
       goal();
       break;
     case State_test:
-      //passedKalmanFilter();
-      //calcDirection();
-      move2goal();
+      gps_test();
       //writeSD();
+      //delay(1000);
       break;
     default:
       // code block
@@ -377,8 +376,6 @@ float direction2goal(){
 void calibrate(){
   Serial.print("Calibrate ");
   led(led1, ON);
-  m1.ccw(200);
-  m2.ccw(200);
   for(int i=0; i<10000; i++){
     Serial.print(".");
     mag.read();
@@ -391,8 +388,6 @@ void calibrate(){
     running_max.y = _max(running_max.y, mag.m.y);
     running_max.z = _max(running_max.z, mag.m.z);
   }
-  m1.stop();
-  m2.stop();
   Serial.println(" done");
   led(led1, OFF);
   // Calculate offset value
@@ -523,4 +518,21 @@ void imu_test(){
     imu.g.x, imu.g.y,
     mag.m.x, mag.m.y);
   Serial.print(report);
+}
+
+void gps_test(){
+  while(ss.available() > 0)
+    gps.encode(ss.read());
+
+  Serial.print("Lat: "); Serial.print(gps.location.lat(), 6);
+  Serial.print("\t");
+  Serial.print("Lng: "); Serial.print(gps.location.lng(), 6);
+
+  float lat = gps.location.lat();
+  float lng = gps.location.lng();
+
+  Serial.print("\t");
+  Serial.print("Lat: "); Serial.print(lat);
+  Serial.print("\t");
+  Serial.print("Lng: "); Serial.println(lng);
 }
