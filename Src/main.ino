@@ -111,7 +111,7 @@ void setup(){
   SerialBT.begin("Hello 100kinSAT111");
 #endif
   sd.writeFile(SD, "/hello.txt", "Hello 100kinSAT\n");
-  sd.writeFile(SD, "/log.csv", "millis,year,month,day,hour,minute,second,state,lat,lng,ax,ay,az,comax,comay,comaz,gx,gy,gz,mx,my,mz,pre,tmp,roll,pitch,distance2goal,direction2goal,direction,m1,m2\n");
+  sd.writeFile(SD, "/log.csv", "millis,year,month,day,hour,minute,second,state,lat,lng,alt,ax,ay,az,comax,comay,comaz,gx,gy,gz,mx,my,mz,pre,tmp,roll,pitch,distance2goal,direction2goal,direction,m1,m2\n");
   Wire.begin();
   ss.begin(GPSBaud);
 
@@ -156,9 +156,9 @@ void loop(){
       goal();
       break;
     case State_test:
-      gps_test();
-      //writeSD();
-      //delay(1000);
+      //gps_test();
+      writeSD();
+      delay(1000);
       break;
     default:
       // code block
@@ -467,34 +467,35 @@ void writeSD(){
     gps.encode(ss.read());
 
   String str = "";
-  str += millis();            str += ",";
-  str += gps.date.year();     str += ",";
-  str += gps.date.month();    str += ",";
-  str += gps.date.day();      str += ",";
-  str += gps.time.hour();     str += ",";
-  str += gps.time.minute();   str += ",";
-  str += gps.time.second();   str += ",";
-  str += s;                   str += ",";
-  str += gps.location.lat();  str += ",";
-  str += gps.location.lng();  str += ",";
-  str += imu.a.x;             str += ",";
-  str += imu.a.y;             str += ",";
-  str += imu.a.z;             str += ",";
-  str += comAccX;             str += ",";
-  str += comAccY;             str += ",";
-  str += comAccZ;             str += ",";
-  str += imu.g.x;             str += ",";
-  str += imu.g.y;             str += ",";
-  str += imu.g.z;             str += ",";
-  str += mag.m.x;             str += ",";
-  str += mag.m.y;             str += ",";
-  str += mag.m.z;             str += ",";
-  str += pressure;            str += ",";
-  str += temperature;         str += ",";
-  str += kalAngleX;           str += ",";
-  str += kalAngleY;           str += ",";
-  str += distance2goal();     str += ",";
-  str += direction2goal();    str += ",";
+  str += millis();                      str += ",";
+  str += gps.date.year();               str += ",";
+  str += gps.date.month();              str += ",";
+  str += gps.date.day();                str += ",";
+  str += gps.time.hour();               str += ",";
+  str += gps.time.minute();             str += ",";
+  str += gps.time.second();             str += ",";
+  str += s;                             str += ",";
+  str += String(gps.location.lat(), 6); str += ",";
+  str += String(gps.location.lng(), 6); str += ",";
+  str += gps.altitude.meters();         str += ",";
+  str += imu.a.x;                       str += ",";
+  str += imu.a.y;                       str += ",";
+  str += imu.a.z;                       str += ",";
+  str += comAccX;                       str += ",";
+  str += comAccY;                       str += ",";
+  str += comAccZ;                       str += ",";
+  str += imu.g.x;                       str += ",";
+  str += imu.g.y;                       str += ",";
+  str += imu.g.z;                       str += ",";
+  str += mag.m.x;                       str += ",";
+  str += mag.m.y;                       str += ",";
+  str += mag.m.z;                       str += ",";
+  str += pressure;                      str += ",";
+  str += temperature;                   str += ",";
+  str += kalAngleX;                     str += ",";
+  str += kalAngleY;                     str += ",";
+  str += distance2goal();               str += ",";
+  str += direction2goal();              str += ",";
   str += theta;
   str += "\n";
 
@@ -526,13 +527,5 @@ void gps_test(){
 
   Serial.print("Lat: "); Serial.print(gps.location.lat(), 6);
   Serial.print("\t");
-  Serial.print("Lng: "); Serial.print(gps.location.lng(), 6);
-
-  float lat = gps.location.lat();
-  float lng = gps.location.lng();
-
-  Serial.print("\t");
-  Serial.print("Lat: "); Serial.print(lat);
-  Serial.print("\t");
-  Serial.print("Lng: "); Serial.println(lng);
+  Serial.print("Lng: "); Serial.println(gps.location.lng(), 6);
 }
