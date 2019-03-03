@@ -54,7 +54,7 @@ void imuInit();
 void calibrate();
 float distance2goal();
 float direction2goal();
-float calcAzimuth();
+float calcDirection();
 void writeSD();
 
 // Valiables
@@ -157,7 +157,7 @@ void loop(){
       break;
     case State_test:
       //passedKalmanFilter();
-      //calcAzimuth();
+      //calcDirection();
       move2goal();
       //writeSD();
       break;
@@ -350,29 +350,20 @@ void passedKalmanFilter(){
   velZ = velZ + comAccZ * dt;
 
 #ifdef DEBUG
-  //Serial.print(velX); Serial.print("\t");
-  //Serial.print(velY); Serial.print("\t");
-  //Serial.print(velZ); Serial.print("\t");
   Serial.print(comAccX); Serial.print("\t");
   Serial.print(comAccY); Serial.print("\t");
   Serial.print(comAccZ); Serial.print("\t");
 
   Serial.print(roll); Serial.print("\t");
-  //Serial.print(gyroXangle); Serial.print("\t");
-  //Serial.print(compAngleX); Serial.print("\t");
   Serial.print(kalAngleX); Serial.print("\t");
 
   Serial.print("\t");
 
   Serial.print(pitch); Serial.print("\t");
-  //Serial.print(gyroYangle); Serial.print("\t");
-  //Serial.print(compAngleY); Serial.print("\t");
   Serial.print(kalAngleY); Serial.print("\t");
-
-  //Serial.print("\r\n");
+#endif
 
   delay(2);
-#endif
 }
 
 float distance2goal(){
@@ -410,7 +401,7 @@ void calibrate(){
   magZoff = (running_max.z + running_min.z) / 2;
 }
 
-float calcAzimuth(){
+float calcDirection(){
   passedKalmanFilter();
   mag.read();
 
@@ -420,17 +411,6 @@ float calcAzimuth(){
   float numer = (mag.m.z-magZoff)*sin(roll)-(mag.m.y-magYoff)*cos(roll);
   float denom = (mag.m.x-magXoff)*cos(pitch)+(mag.m.y-magYoff)*sin(pitch)*sin(roll)+(mag.m.z-magZoff)*sin(pitch)*cos(roll);
   float theta = atan2(numer, denom) * RAD_TO_DEG;
-
-  Serial.println(theta);
-
-  return theta;
-}
-
-float calcDirection(){
-  float mx_center = (running_max.x + running_min.x) / 2;
-  float my_center = (running_max.y + running_min.y) / 2;
-  mag.read();
-  float theta = (int)(atan2(mag.m.y - my_center, mag.m.x - mx_center) * (RAD_TO_DEG));
 
   Serial.println(theta);
 
@@ -459,8 +439,7 @@ void move2goal(){
 #ifdef DEBUG
   Serial.print("Lat: "); Serial.print(gps.location.lat(), 6);
   Serial.print("\t");
-  Serial.print("Lng: "); Serial.print(gps.location.lng(), 6);
-  Serial.print("\t");
+  Serial.print("Lng: "); Serial.println(gps.location.lng(), 6);
 #endif
 
   float theta = calcDirection();
@@ -476,33 +455,6 @@ void move2goal(){
     m2.stop();
   }
   delay(20);
-
-/*
-  m1.stop();
-  m2.stop();
-  delay(1000);
-  float direction = 0; // In the direction of CanSat
-  for(int i=0; i<COUNT_NUM; i++){
-    direction += calcAzimuth();
-    //delay(10);
-  }
-  direction = direction / COUNT_NUM; // Calculate direction average
-  if(direction > 180) direction = 180;
-  if(direction < -180) direction = -180;
-  Serial.println(direction);
-  if(direction > 90){
-    m1.ccw(200);
-    m2.ccw(200);
-  } else if(direction < -90){
-    m1.cw(200);
-    m2.cw(200);
-  } else{
-    m1.ccw(200);
-    m2.cw(200);
-    delay(750);
-  }
-  delay(250);
-*/
 }
 
 void led(uint8_t led, uint8_t state){
@@ -513,7 +465,7 @@ void led(uint8_t led, uint8_t state){
 void writeSD(){
   char buf[1024];
   passedKalmanFilter();
-  float theta = calcAzimuth();
+  float theta = calcDirection();
   float pressure = ps.readPressureMillibars();
   float temperature = ps.readTemperatureC();
   while(ss.available() > 0)
