@@ -4,7 +4,6 @@
 #include <LSM6.h>
 #include <TinyGPS++.h>
 #include <Kalman.h>
-#include <MadgwickAHRS.h>
 #include "BluetoothSerial.h"
 #include "Speaker.h"
 #include "Motor.h"
@@ -30,7 +29,6 @@ TinyGPSPlus gps;
 HardwareSerial ss(2);
 Kalman kalmanX;
 Kalman kalmanY;
-Madgwick filter;
 Speaker sp = Speaker(12);
 Motor m1 = Motor(4, 13, 25, 0);
 Motor m2 = Motor(27, 14, 26, 1);
@@ -136,6 +134,7 @@ void setup(){
 }
 
 void loop(){
+  s = State_test;
 
   switch(s){
     case State_calibrate:
@@ -158,7 +157,9 @@ void loop(){
       goal();
       break;
     case State_test:
-      //writeSD();
+      writeSD();
+      m1.cw(200);
+      m2.cw(200);
       //calcDirection();
       //move2goal();
       //delay(100);
@@ -457,7 +458,7 @@ void move2goal(){
   m1.stop();
   m2.stop();
   delay(100);
-  float theta = madgwick_test();
+  float theta = calcDirection();
   delay(100);
 
   if(theta > 60){
