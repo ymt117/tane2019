@@ -4,6 +4,7 @@
 #include <LSM6.h>
 #include <TinyGPS++.h>
 #include <Kalman.h>
+#include <MadgwickAHRS.h>
 #include "BluetoothSerial.h"
 #include "Speaker.h"
 #include "Motor.h"
@@ -29,6 +30,7 @@ TinyGPSPlus gps;
 HardwareSerial ss(2);
 Kalman kalmanX;
 Kalman kalmanY;
+Madgwick filter;
 Speaker sp = Speaker(12);
 Motor m1 = Motor(4, 13, 25, 0);
 Motor m2 = Motor(27, 14, 26, 1);
@@ -156,12 +158,9 @@ void loop(){
       goal();
       break;
     case State_test:
-      //gps_test();
-      //m1.cw(200);
-      //m2.cw(200);
-      //move2goal();
       //writeSD();
-      calcDirection();
+      //calcDirection();
+      //move2goal();
       //delay(100);
       break;
     default:
@@ -430,15 +429,6 @@ float calcDirection(){
   return theta;
 }
 
-// Use only magnetometer axis X and Y
-float calcDirection2(){
-  mag.read();
-
-  float theta = (int)(atan2(mag.m.y-magYoff, mag.m.x-magXoff)*RAD_TO_DEG);
-  Serial.println(theta);
-  return theta;
-}
-
 void judgeLanding(){
   // Use flight pin
   if(digitalRead(flightPin)){
@@ -464,17 +454,24 @@ void move2goal(){
   Serial.print("Lng: "); Serial.println(gps.location.lng(), 6);
 #endif
 
-  float theta = calcDirection();
+  m1.stop();
+  m2.stop();
+  delay(100);
+  float theta = madgwick_test();
+  delay(100);
 
   if(theta > 60){
     m1.ccw(200);
     m2.ccw(200);
+    delay(100);
   }else if(theta < -60){
     m1.cw(200);
     m2.cw(200);
+    delay(100);
   }else{
     m1.stop();
     m2.stop();
+    delay(1000);
   }
   delay(20);
 }
