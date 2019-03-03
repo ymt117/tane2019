@@ -29,12 +29,16 @@ Motor::Motor(uint8_t pin1, uint8_t pin2, uint8_t pin3, uint8_t channel){
 }
 
 void Motor::cw(uint8_t pwm){
+  if(pwm > 255) pwm = 255;
+  if(pwm < 0) pwm = 0;
   digitalWrite(_pin1, LOW);
   digitalWrite(_pin2, HIGH);
   ledcWrite(_channel, pwm);
 }
 
 void Motor::ccw(uint8_t pwm){
+  if(pwm > 255) pwm = 255;
+  if(pwm < 0) pwm = 0;
   digitalWrite(_pin2, LOW);
   digitalWrite(_pin1, HIGH);
   ledcWrite(_channel, pwm);
