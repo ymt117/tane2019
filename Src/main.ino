@@ -18,6 +18,7 @@
 #define COUNT_NUM 100
 #define ON 1
 #define OFF 0
+#define FLIGHT_TIME 300000 // FLIGHT_TIME[ms] 
 
 LPS ps;
 LIS3MDL mag;
@@ -100,6 +101,7 @@ bool flag_flightPin = false;
 bool flag_pressure = false;
 bool flag_acceleration = false;
 bool flag_timer = false;
+uint32_t flag_timer_start = 0;
 
 void setup(){
   Serial.begin(115200);
@@ -126,10 +128,12 @@ void setup(){
   imuInit();
   sp.beep();
 
+  flag_timer_start = millis();
   s = State_calibrate;
 }
 
 void loop(){
+
   switch(s){
     case State_calibrate:
       calibrate();
@@ -141,6 +145,7 @@ void loop(){
     case State_release:
       break;
     case State_heat:
+      heat(heat1, 5000);
       break;
     case State_comeback:
       move2goal();
@@ -436,6 +441,9 @@ void judgeLanding(){
   // Use acceleration
 
   // Use timer
+  if((millis() - flag_timer_start) > FLIGHT_TIME){
+    flag_timer = true;
+  }
 }
 
 void move2goal(){
