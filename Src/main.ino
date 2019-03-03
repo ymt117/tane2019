@@ -95,7 +95,9 @@ float gravityX, gravityY, gravityZ = 0;
 
 const float alpha = 0.8; // lowpassfilter
 
-float magXoff, magYoff, magZoff = 0;
+float magXoff = 1775.41058475;
+float magYoff = 2081.76811925;
+float magZoff = -15967.81415057;
 
 // flag for judge landing
 bool flag_flightPin = false;
@@ -158,8 +160,8 @@ void loop(){
       break;
     case State_test:
       writeSD();
-      m1.cw(200);
-      m2.cw(200);
+      //m1.cw(200);
+      //m2.cw(200);
       //calcDirection();
       //move2goal();
       //delay(100);
@@ -412,12 +414,6 @@ float calcDirection(){
   float mag_x = mag.m.x;
   float mag_y = mag.m.y;
   float mag_z = mag.m.z;
-  if(mag_x > running_max.x) mag_x = running_max.x;
-  if(mag_y > running_max.y) mag_y = running_max.y;
-  if(mag_z > running_max.z) mag_z = running_max.z;
-  if(mag_x < running_min.x) mag_x = running_min.x;
-  if(mag_y < running_min.y) mag_y = running_min.y;
-  if(mag_z < running_min.z) mag_z = running_min.z;
 
   float numer = (mag_z-magZoff)*sin(roll)-(mag_y-magYoff)*cos(roll);
   float denom = (mag_x-magXoff)*cos(pitch)+(mag_y-magYoff)*sin(pitch)*sin(roll)+(mag_z-magZoff)*sin(pitch)*cos(roll);
