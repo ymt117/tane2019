@@ -19,6 +19,7 @@
 #define ON 1
 #define OFF 0
 #define FLIGHT_TIME 300000 // FLIGHT_TIME[ms] 
+#define DEG_TO_RAD 0.017453292519943
 
 LPS ps;
 LIS3MDL mag;
@@ -156,8 +157,8 @@ void loop(){
       break;
     case State_test:
       //passedKalmanFilter();
-      //calcAzimuth();
-      move2goal();
+      calcAzimuth();
+      //move2goal();
       //writeSD();
       break;
     default:
@@ -406,27 +407,23 @@ void calibrate(){
 }
 
 float calcAzimuth(){
-  imu.read();
+  passedKalmanFilter();
   mag.read();
 
-  accX = imu.a.x;
-  accY = imu.a.y;
-  accZ = imu.a.z;
-
-  float roll = atan2(accY, accZ);
-  float pitch = atan(-accX / sqrt(accY * accY + accZ * accZ));
+  float roll = kalAngleX * DEG_TO_RAD;
+  float pitch = kalAngleY * DEG_TO_RAD;
 
   float numer = (mag.m.z-magZoff)*sin(roll)-(mag.m.y-magYoff)*cos(roll);
   float denom = (mag.m.x-magXoff)*cos(pitch)+(mag.m.y-magYoff)*sin(pitch)*sin(roll)+(mag.m.z-magZoff)*sin(pitch)*cos(roll);
   float theta = atan2(numer, denom) * RAD_TO_DEG;
 
-#ifdef DEBUG
-  //Serial.print(roll * RAD_TO_DEG);
+//#ifdef DEBUG
+  //Serial.print(roll);
   //Serial.print("\t");
-  //Serial.print(pitch * RAD_TO_DEG);
+  //Serial.print(pitch);
   //Serial.print("\t");
   Serial.println(theta);
-#endif
+//#endif
 
   return theta;
 }
