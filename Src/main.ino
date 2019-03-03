@@ -18,7 +18,7 @@
 #define COUNT_NUM 100
 #define ON 1
 #define OFF 0
-#define FLIGHT_TIME 300000 // FLIGHT_TIME[ms] 
+#define FLIGHT_TIME 600000 // FLIGHT_TIME[ms] 
 #define DEG_TO_RAD 0.017453292519943
 
 LPS ps;
@@ -157,8 +157,12 @@ void loop(){
       break;
     case State_test:
       //gps_test();
-      writeSD();
-      delay(1000);
+      //m1.cw(200);
+      //m2.cw(200);
+      //move2goal();
+      //writeSD();
+      calcDirection();
+      //delay(100);
       break;
     default:
       // code block
@@ -376,7 +380,7 @@ float direction2goal(){
 void calibrate(){
   Serial.print("Calibrate ");
   led(led1, ON);
-  for(int i=0; i<10000; i++){
+  for(int i=0; i<15000; i++){
     Serial.print(".");
     mag.read();
     // Acquire maximum and minimum values ​​from sensor
@@ -388,6 +392,7 @@ void calibrate(){
     running_max.y = _max(running_max.y, mag.m.y);
     running_max.z = _max(running_max.z, mag.m.z);
   }
+  writeOffset();
   Serial.println(" done");
   led(led1, OFF);
   // Calculate offset value
@@ -396,6 +401,7 @@ void calibrate(){
   magZoff = (running_max.z + running_min.z) / 2;
 }
 
+// Use acceleration and magnetometer
 float calcDirection(){
   passedKalmanFilter();
   mag.read();
@@ -403,12 +409,33 @@ float calcDirection(){
   float roll = kalAngleX * DEG_TO_RAD;
   float pitch = kalAngleY * DEG_TO_RAD;
 
-  float numer = (mag.m.z-magZoff)*sin(roll)-(mag.m.y-magYoff)*cos(roll);
-  float denom = (mag.m.x-magXoff)*cos(pitch)+(mag.m.y-magYoff)*sin(pitch)*sin(roll)+(mag.m.z-magZoff)*sin(pitch)*cos(roll);
+  float mag_x = mag.m.x;
+  float mag_y = mag.m.y;
+  float mag_z = mag.m.z;
+  if(mag_x > running_max.x) mag_x = running_max.x;
+  if(mag_y > running_max.y) mag_y = running_max.y;
+  if(mag_z > running_max.z) mag_z = running_max.z;
+  if(mag_x < running_min.x) mag_x = running_min.x;
+  if(mag_y < running_min.y) mag_y = running_min.y;
+  if(mag_z < running_min.z) mag_z = running_min.z;
+
+  float numer = (mag_z-magZoff)*sin(roll)-(mag_y-magYoff)*cos(roll);
+  float denom = (mag_x-magXoff)*cos(pitch)+(mag_y-magYoff)*sin(pitch)*sin(roll)+(mag_z-magZoff)*sin(pitch)*cos(roll);
   float theta = atan2(numer, denom) * RAD_TO_DEG;
 
+  Serial.print(kalAngleX); Serial.print("\t");
+  Serial.print(kalAngleY); Serial.print("\t");
   Serial.println(theta);
 
+  return theta;
+}
+
+// Use only magnetometer axis X and Y
+float calcDirection2(){
+  mag.read();
+
+  float theta = (int)(atan2(mag.m.y-magYoff, mag.m.x-magXoff)*RAD_TO_DEG);
+  Serial.println(theta);
   return theta;
 }
 
@@ -455,6 +482,26 @@ void move2goal(){
 void led(uint8_t led, uint8_t state){
   if(state == ON) digitalWrite(led, HIGH);
   if(state == OFF) digitalWrite(led, LOW);
+}
+
+void writeOffset(){
+  char buf[256];
+
+  sd.writeFile(SD, "/mag_offset.txt", "max_x,max_y,max_z,min_x,min_y,min_z\n");
+
+  String str = "";
+  str += running_max.x;   str += ",";
+  str += running_max.y;   str += ",";
+  str += running_max.z;   str += ",";
+  str += running_min.x;   str += ",";
+  str += running_min.y;   str += ",";
+  str += running_min.z;   str += ",";
+  str += "\n";
+
+  int len = str.length();
+  str.toCharArray(buf, len+1);
+
+  sd.appendFile(SD, "/mag_offset.txt", buf);
 }
 
 void writeSD(){
