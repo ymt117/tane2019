@@ -157,8 +157,8 @@ void loop(){
       break;
     case State_test:
       //passedKalmanFilter();
-      calcAzimuth();
-      //move2goal();
+      //calcAzimuth();
+      move2goal();
       //writeSD();
       break;
     default:
@@ -386,6 +386,8 @@ float direction2goal(){
 void calibrate(){
   Serial.print("Calibrate ");
   led(led1, ON);
+  m1.ccw(200);
+  m2.ccw(200);
   for(int i=0; i<10000; i++){
     Serial.print(".");
     mag.read();
@@ -398,6 +400,8 @@ void calibrate(){
     running_max.y = _max(running_max.y, mag.m.y);
     running_max.z = _max(running_max.z, mag.m.z);
   }
+  m1.stop();
+  m2.stop();
   Serial.println(" done");
   led(led1, OFF);
   // Calculate offset value
@@ -417,13 +421,18 @@ float calcAzimuth(){
   float denom = (mag.m.x-magXoff)*cos(pitch)+(mag.m.y-magYoff)*sin(pitch)*sin(roll)+(mag.m.z-magZoff)*sin(pitch)*cos(roll);
   float theta = atan2(numer, denom) * RAD_TO_DEG;
 
-//#ifdef DEBUG
-  //Serial.print(roll);
-  //Serial.print("\t");
-  //Serial.print(pitch);
-  //Serial.print("\t");
   Serial.println(theta);
-//#endif
+
+  return theta;
+}
+
+float calcDirection(){
+  float mx_center = (running_max.x + running_min.x) / 2;
+  float my_center = (running_max.y + running_min.y) / 2;
+  mag.read();
+  float theta = (int)(atan2(mag.m.y - my_center, mag.m.x - mx_center) * (RAD_TO_DEG));
+
+  Serial.println(theta);
 
   return theta;
 }
@@ -453,22 +462,19 @@ void move2goal(){
   Serial.print("Lng: "); Serial.print(gps.location.lng(), 6);
   Serial.print("\t");
 #endif
-  while(calcAzimuth() > 90){
+
+  float theta = calcDirection();
+
+  if(theta > 60){
     m1.ccw(200);
     m2.ccw(200);
-    delay(50);
-    //Serial.println("aaa");
-  }
-  while(calcAzimuth() < -90){
+  }else if(theta < -60){
     m1.cw(200);
     m2.cw(200);
-    delay(50);
-    //Serial.println("bbb");
+  }else{
+    m1.stop();
+    m2.stop();
   }
-  //Serial.println("ccc");
-  Serial.println(calcAzimuth());
-  m1.stop();
-  m2.stop();
   delay(20);
 
 /*
