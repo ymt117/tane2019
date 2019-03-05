@@ -18,7 +18,10 @@
 #define COUNT_NUM 100
 #define ON 1
 #define OFF 0
-#define FLIGHT_TIME 600000 // FLIGHT_TIME[ms] 
+#define STOP 0
+#define CW 1
+#define CCW 2
+#define FLIGHT_TIME 180000 // FLIGHT_TIME[ms] 
 #define DEG_TO_RAD 0.017453292519943
 
 LPS ps;
@@ -69,8 +72,9 @@ static const uint8_t flightPin = 34;
  * g_lat, g_lng：目標地点の緯度，経度
  * 競技開始前に計測して入力しておくこと
 */
-static const float g_lat = 31.570648;
-static const float g_lng = 130.545872;
+static const float g_lat = 31.568482;
+static const float g_lng = 130.543202;
+static const float threshold2goal = 5.0;
 
 float accX, accY, accZ; // raw data 
 float gyroX, gyroY, gyroZ; // raw data 
@@ -105,6 +109,15 @@ bool flag_pressure = false;
 bool flag_acceleration = false;
 bool flag_timer = false;
 uint32_t flag_timer_start = 0;
+bool flag_fire = false;
+
+enum motor_control{
+  stop = 0,
+  forward,
+  right,
+  left
+};
+motor_control mc = stop;
 
 void setup(){
   Serial.begin(115200);
@@ -113,7 +126,7 @@ void setup(){
   SerialBT.begin("Hello 100kinSAT111");
 #endif
   sd.writeFile(SD, "/hello.txt", "Hello 100kinSAT\n");
-  sd.writeFile(SD, "/log.csv", "millis,year,month,day,hour,minute,second,state,lat,lng,alt,ax,ay,az,comax,comay,comaz,gx,gy,gz,mx,my,mz,pre,tmp,roll,pitch,distance2goal,direction2goal,direction,m1,m2\n");
+  sd.writeFile(SD, "/log.csv", "millis,year,month,day,hour,minute,second,state,lat,lng,alt,ax,ay,az,comax,comay,comaz,gx,gy,gz,mx,my,mz,pre,tmp,roll,pitch,distance2goal,direction2goal,direction,flag_flightPin,flag_pressure,flag_acceleration,flag_timer,flag_fire,motor_control\n");
   Wire.begin();
   ss.begin(GPSBaud);
 
@@ -132,11 +145,10 @@ void setup(){
   sp.beep();
 
   flag_timer_start = millis();
-  s = State_calibrate;
+  s = State_launch;
 }
 
 void loop(){
-  s = State_test;
 
   switch(s){
     case State_calibrate:
@@ -145,26 +157,48 @@ void loop(){
       s = State_test;
       break;
     case State_launch:
+      led(led1, ON);
+      judgeLanding();
+      writeSD();
+      if(flag_fire == true){
+        led(led1, OFF);
+        s = State_heat;
+      }
       break;
     case State_release:
       break;
     case State_heat:
+      led(led2, ON);
       heat(heat1, 5000);
+      writeSD();
+      delay(1000);
+      heat(heat1, 5000);
+      delay(5000);
+      writeSD();
+      heat(heat2, 5000);
+      delay(1000);
+      writeSD();
+      heat(heat2, 5000);
+      delay(1000);
+      led(led2, OFF);
+      writeSD();
+      s = State_comeback;
       break;
     case State_comeback:
-      move2goal();
+      m1.ccw(200);
+      m2.cw(200);
+      delay(5000);
+      m1.stop();
+      m2.stop();
       writeSD();
+      s = State_goal;
       break;
     case State_goal:
       goal();
       break;
     case State_test:
-      writeSD();
-      //m1.cw(200);
-      //m2.cw(200);
-      //calcDirection();
-      //move2goal();
-      //delay(100);
+      move2goal();
+      //gps_test();
       break;
     default:
       // code block
@@ -285,6 +319,7 @@ void goal(){
     led(led1, OFF);
     led(led2, ON);
     delay(1000);
+    writeSD();
   }
 }
 
@@ -379,6 +414,10 @@ float direction2goal(){
   return atan2((gps.location.lng() - g_lng)*1.23,(gps.location.lat() - g_lat))*57.3+180;
 }
 
+float direction2oldPos(float o_lat, float o_lng){
+  return atan2((gps.location.lng() - o_lng)*1.23,(gps.location.lat() - o_lat))*57.3+180;
+}
+
 void calibrate(){
   Serial.print("Calibrate ");
   led(led1, ON);
@@ -439,37 +478,73 @@ void judgeLanding(){
   if((millis() - flag_timer_start) > FLIGHT_TIME){
     flag_timer = true;
   }
+
+  // Determine whether to ignite
+  if(flag_flightPin == true && flag_timer == true){
+    flag_fire = true;
+  }
 }
 
 void move2goal(){
+  float m_start = millis();
   while(ss.available() > 0)
     gps.encode(ss.read());
+  
+  writeSD();
 
-#ifdef DEBUG
-  Serial.print("Lat: "); Serial.print(gps.location.lat(), 6);
-  Serial.print("\t");
-  Serial.print("Lng: "); Serial.println(gps.location.lng(), 6);
-#endif
-
-  m1.stop();
-  m2.stop();
-  delay(100);
-  float theta = calcDirection();
-  delay(100);
-
-  if(theta > 60){
-    m1.ccw(200);
-    m2.ccw(200);
-    delay(100);
-  }else if(theta < -60){
-    m1.cw(200);
-    m2.cw(200);
-    delay(100);
-  }else{
+  while(distance2goal() < 5){// Until the distance from the goal is 5 meters or less,
+    float old_direction2goal = direction2goal();
+    float o_lat = gps.location.lat();
+    float o_lng = gps.location.lng();
+    mc = forward;
+    m_start = millis();
+    while((millis() - m_start) > 20000){
+      // forward
+      m1.ccw(200);
+      m2.cw(200);
+      writeSD();
+    }
+    float tmp = old_direction2goal - direction2oldPos(o_lat, o_lng);
+    if((tmp > 10){
+      // Turn right
+      mc = right;
+      led(led1, ON);
+      m_start = millis();
+      while((millis() - m_start) > tmp*5.56){
+        m1.cw();
+        m2.cw();
+      }
+      led(led1, OFF);
+      writeSD();
+    } else if(tmp < -10){
+      // Turn left
+      mc = left;
+      led(led2, ON);
+      m_start = millis();
+      while(millis() - m_start) > tmp*5.56){
+        m1.ccw();
+        m2.ccw();
+      }
+      led(led2, OFF);
+      writeSD();
+    } else{
+      // do nothing
+      led(led1, ON);
+      led(led2, ON);
+      delay(500);
+      led(led1, OFF);
+      led(led2, OFF);
+      writeSD();
+    }
     m1.stop();
     m2.stop();
-    delay(1000);
+    delay(500);
   }
+
+  mc = stop;
+  m1.stop();
+  m2.stop();
+  s = State_goal;
   delay(20);
 }
 
@@ -537,36 +612,17 @@ void writeSD(){
   str += kalAngleY;                     str += ",";
   str += distance2goal();               str += ",";
   str += direction2goal();              str += ",";
-  str += theta;
+  str += theta;                         str += ",";
+  str += flag_flightPin;                str += ",";
+  str += flag_pressure;                 str += ",";
+  str += flag_acceleration;             str += ",";
+  str += flag_timer;                    str += ",";
+  str += flag_fire;                     str += ",";
+  str += mc;
   str += "\n";
 
   int len = str.length();
   str.toCharArray(buf, len+1);
 
   sd.appendFile(SD, "/log.csv", buf);
-}
-
-// Display IMU sensor value
-void imu_test(){
-  float pressure = ps.readPressureMillibars();
-  mag.read();
-  imu.read();
-
-  Serial.print("P: ");
-  Serial.print(pressure);
-  snprintf(report, sizeof(report),
-    " A: %5d %5d G: %5d %5d M: %5d %5d\n",
-    imu.a.x, imu.a.y,
-    imu.g.x, imu.g.y,
-    mag.m.x, mag.m.y);
-  Serial.print(report);
-}
-
-void gps_test(){
-  while(ss.available() > 0)
-    gps.encode(ss.read());
-
-  Serial.print("Lat: "); Serial.print(gps.location.lat(), 6);
-  Serial.print("\t");
-  Serial.print("Lng: "); Serial.println(gps.location.lng(), 6);
 }
