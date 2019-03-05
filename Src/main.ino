@@ -44,7 +44,6 @@ mySD sd = mySD();
 enum MyState{
   State_calibrate = 0,
   State_launch,
-  State_release,
   State_heat,
   State_comeback,
   State_goal,
@@ -168,8 +167,6 @@ void loop(){
         led(led1, OFF);
         s = State_heat;
       }
-      break;
-    case State_release:
       break;
     case State_heat:
       led(led2, ON);
