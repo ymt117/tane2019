@@ -505,14 +505,14 @@ void move2goal(){
       writeSD();
     }
     float tmp = old_direction2goal - direction2oldPos(o_lat, o_lng);
-    if((tmp > 10){
+    if(tmp > 10){
       // Turn right
       mc = right;
       led(led1, ON);
       m_start = millis();
       while((millis() - m_start) > tmp*5.56){
-        m1.cw();
-        m2.cw();
+        m1.cw(200);
+        m2.cw(200);
       }
       led(led1, OFF);
       writeSD();
@@ -521,9 +521,9 @@ void move2goal(){
       mc = left;
       led(led2, ON);
       m_start = millis();
-      while(millis() - m_start) > tmp*5.56){
-        m1.ccw();
-        m2.ccw();
+      while((millis() - m_start) > tmp*5.56){
+        m1.ccw(200);
+        m2.ccw(200);
       }
       led(led2, OFF);
       writeSD();
@@ -536,9 +536,6 @@ void move2goal(){
       led(led2, OFF);
       writeSD();
     }
-    m1.stop();
-    m2.stop();
-    delay(500);
   }
 
   mc = stop;
