@@ -107,6 +107,7 @@ float magZoff = -15967.81415057;
 bool flag_flightPin = false;
 bool flag_pressure = false;
 bool flag_acceleration = false;
+int count_acc_zero = 0;
 bool flag_timer = false;
 uint32_t flag_timer_start = 0;
 bool flag_fire = false;
@@ -481,6 +482,14 @@ void judgeLanding(){
   // Use pressure
 
   // Use acceleration
+  if((millis() - flag_timer_start) > 120000){// 2min or more
+    if(comAccX == 0 && comAccY == 0 && comAccZ){
+      ++count_acc_zero;
+    }
+    if(count_acc_zero > 500){
+      flag_acceleration = true;
+    }
+  }
 
   // Use timer
   if((millis() - flag_timer_start) > FLIGHT_TIME){
