@@ -488,13 +488,14 @@ void judgeLanding(){
   }
 
   // Determine whether to ignite
-  if(flag_flightPin == true && flag_timer == true){
+  if((flag_flightPin == true && flag_timer == true) || (flag_acceleration == true && flag_timer == true) || flag_timer == true){
     flag_fire = true;
   }
 }
 
 void move2goal(){
   float m_start = millis();
+  float forward_time = 20000;
   while(ss.available() > 0)
     gps.encode(ss.read());
   
@@ -504,9 +505,12 @@ void move2goal(){
     float old_direction2goal = direction2goal();
     float o_lat = gps.location.lat();
     float o_lng = gps.location.lng();
+    if(distance2goal() < 20){
+      forward_time = 10000;
+    }
     mc = forward;
     m_start = millis();
-    while((millis() - m_start) < 20000){
+    while((millis() - m_start) < forward_time){
       // forward
       Serial.println("forward");
       m1.ccw(255);
