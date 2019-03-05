@@ -13,7 +13,7 @@
 #error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
 #endif
 
-//#define DEBUG
+//#define DEBUG_SERIAL
 //#define BTSERIAL 
 #define COUNT_NUM 100
 #define ON 1
@@ -21,7 +21,7 @@
 #define STOP 0
 #define CW 1
 #define CCW 2
-#define FLIGHT_TIME 180000 // FLIGHT_TIME[ms] 
+#define FLIGHT_TIME 600000 // FLIGHT_TIME[ms] 
 #define DEG_TO_RAD 0.017453292519943
 
 LPS ps;
@@ -146,7 +146,7 @@ void setup(){
   sp.beep();
 
   flag_timer_start = millis();
-  s = State_test;
+  s = State_launch;
 }
 
 void loop(){
@@ -157,55 +157,29 @@ void loop(){
       writeSD();
       s = State_test;
       break;
+
     case State_launch:
-      Serial.println("launch");
-      led(led1, ON);
       judgeLanding();
-      writeSD();
-      if(flag_fire == true){
-        Serial.println("flag_fire is true");
-        led(led1, OFF);
-        s = State_heat;
-      }
       break;
+
     case State_heat:
-      led(led2, ON);
-      Serial.println("heating 1!");
-      heat(heat1, 3000);
-      delay(1000);
-      writeSD();
-      Serial.println("heating 1!!!");
-      heat(heat1, 3000);
-      delay(10000);
-      writeSD();
-      Serial.println("heating 2!");
-      heat(heat2, 3000);
-      delay(1000);
-      writeSD();
-      Serial.println("heating 2!!!");
-      heat(heat2, 3000);
-      delay(1000);
-      led(led2, OFF);
-      writeSD();
+      doHeat();
       s = State_comeback;
       break;
+
     case State_comeback:
-      Serial.println("come back");
-      m1.ccw(200);
-      m2.cw(200);
-      delay(5000);
-      m1.stop();
-      m2.stop();
-      writeSD();
+      move2goal();
       s = State_goal;
       break;
+
     case State_goal:
       goal();
       break;
+
     case State_test:
-      move2goal();
-      //gps_test();
+      // test code
       break;
+
     default:
       // code block
       break;
@@ -296,6 +270,35 @@ void heat(uint8_t pin, int ms){
   } else{
     Serial.printf("%d is not set a pin for heating wires.\n", pin);
   }
+}
+
+void doHeat(){
+  led(led2, ON);
+#ifdef DEBUG_SERIAL
+  Serial.println("heating 1!");
+#endif
+  heat(heat1, 3000);
+  delay(1000);
+  writeSD();
+#ifdef DEBUG_SERIAL
+  Serial.println("heating 1!!!");
+#endif
+  heat(heat1, 3000);
+  delay(10000);
+  writeSD();
+#ifdef DEBUG_SERIAL
+  Serial.println("heating 2!");
+#endif
+  heat(heat2, 3000);
+  delay(1000);
+  writeSD();
+#ifdef DEBUG_SERIAL
+  Serial.println("heating 2!!!");
+#endif
+  heat(heat2, 3000);
+  delay(1000);
+  led(led2, OFF);
+  writeSD();
 }
 
 void goal(){
@@ -395,7 +398,7 @@ void passedKalmanFilter(){
   velY = velY + comAccY * dt;
   velZ = velZ + comAccZ * dt;
 
-#ifdef DEBUG
+#ifdef DEBUG_SERIAL
   Serial.print(comAccX); Serial.print("\t");
   Serial.print(comAccY); Serial.print("\t");
   Serial.print(comAccZ); Serial.print("\t");
@@ -472,6 +475,8 @@ float calcDirection(){
 }
 
 void judgeLanding(){
+  led(led1, ON);
+
   // Use flight pin
   if(digitalRead(flightPin)){
     flag_flightPin = true;
@@ -487,7 +492,6 @@ void judgeLanding(){
       flag_acceleration = true;
     }
   }
-
   // Use timer
   if((millis() - flag_timer_start) > FLIGHT_TIME){
     flag_timer = true;
@@ -496,6 +500,14 @@ void judgeLanding(){
   // Determine whether to ignite
   if((flag_flightPin == true && flag_timer == true) || (flag_acceleration == true && flag_timer == true) || flag_timer == true){
     flag_fire = true;
+  }
+  writeSD();
+  if(flag_fire == true){
+  #ifdef DEBUG_SERIAL
+    Serial.println("flag_fire is true");
+  #endif
+    led(led1, OFF);
+    s = State_heat;
   }
 }
 
