@@ -147,6 +147,8 @@ void setup(){
 
   flag_timer_start = millis();
   s = State_launch;
+  // s = State_test;
+  // s = State_comeback;
 }
 
 void loop(){
@@ -177,6 +179,7 @@ void loop(){
       break;
 
     case State_test:
+      gps_test();
       // test code
       break;
 
@@ -485,7 +488,7 @@ void judgeLanding(){
 
   // Use acceleration
   if((millis() - flag_timer_start) > 120000){// 2min or more
-    if(comAccX == 0 && comAccY == 0 && comAccZ){
+    if(comAccX == 0 && comAccY == 0 && comAccZ == 0){
       ++count_acc_zero;
     }
     if(count_acc_zero > 500){
