@@ -118,6 +118,7 @@ enum motor_control{
   left
 };
 motor_control mc = stop;
+float tmp = 0;
 
 void setup(){
   Serial.begin(115200);
@@ -126,7 +127,7 @@ void setup(){
   SerialBT.begin("Hello 100kinSAT111");
 #endif
   sd.writeFile(SD, "/hello.txt", "Hello 100kinSAT\n");
-  sd.writeFile(SD, "/log.csv", "millis,year,month,day,hour,minute,second,state,lat,lng,alt,ax,ay,az,comax,comay,comaz,gx,gy,gz,mx,my,mz,pre,tmp,roll,pitch,distance2goal,direction2goal,direction,flag_flightPin,flag_pressure,flag_acceleration,flag_timer,flag_fire,motor_control\n");
+  sd.writeFile(SD, "/log.csv", "millis,year,month,day,hour,minute,second,state,lat,lng,alt,ax,ay,az,comax,comay,comaz,gx,gy,gz,mx,my,mz,pre,tmp,roll,pitch,distance2goal,direction2goal,direction,flag_flightPin,flag_pressure,flag_acceleration,flag_timer,flag_fire,motor_control,motor_ms\n");
   Wire.begin();
   ss.begin(GPSBaud);
 
@@ -145,7 +146,7 @@ void setup(){
   sp.beep();
 
   flag_timer_start = millis();
-  s = State_launch;
+  s = State_test;
 }
 
 void loop(){
@@ -157,10 +158,12 @@ void loop(){
       s = State_test;
       break;
     case State_launch:
+      Serial.println("launch");
       led(led1, ON);
       judgeLanding();
       writeSD();
       if(flag_fire == true){
+        Serial.println("flag_fire is true");
         led(led1, OFF);
         s = State_heat;
       }
@@ -169,22 +172,27 @@ void loop(){
       break;
     case State_heat:
       led(led2, ON);
-      heat(heat1, 5000);
-      writeSD();
-      delay(1000);
-      heat(heat1, 5000);
-      delay(5000);
-      writeSD();
-      heat(heat2, 5000);
+      Serial.println("heating 1!");
+      heat(heat1, 3000);
       delay(1000);
       writeSD();
-      heat(heat2, 5000);
+      Serial.println("heating 1!!!");
+      heat(heat1, 3000);
+      delay(10000);
+      writeSD();
+      Serial.println("heating 2!");
+      heat(heat2, 3000);
+      delay(1000);
+      writeSD();
+      Serial.println("heating 2!!!");
+      heat(heat2, 3000);
       delay(1000);
       led(led2, OFF);
       writeSD();
       s = State_comeback;
       break;
     case State_comeback:
+      Serial.println("come back");
       m1.ccw(200);
       m2.cw(200);
       delay(5000);
@@ -415,7 +423,7 @@ float direction2goal(){
 }
 
 float direction2oldPos(float o_lat, float o_lng){
-  return atan2((gps.location.lng() - o_lng)*1.23,(gps.location.lat() - o_lat))*57.3+180;
+  return atan2((o_lng - gps.location.lng())*1.23,(o_lat - gps.location.lat()))*57.3+180;
 }
 
 void calibrate(){
@@ -492,43 +500,44 @@ void move2goal(){
   
   writeSD();
 
-  while(distance2goal() < 5){// Until the distance from the goal is 5 meters or less,
+  while(distance2goal() > 5){// Until the distance from the goal is 5 meters or less,
     float old_direction2goal = direction2goal();
     float o_lat = gps.location.lat();
     float o_lng = gps.location.lng();
     mc = forward;
     m_start = millis();
-    while((millis() - m_start) > 20000){
+    while((millis() - m_start) < 20000){
       // forward
-      m1.ccw(200);
-      m2.cw(200);
+      Serial.println("forward");
+      m1.ccw(255);
+      m2.cw(255);
       writeSD();
     }
-    float tmp = old_direction2goal - direction2oldPos(o_lat, o_lng);
+    tmp = old_direction2goal - direction2oldPos(o_lat, o_lng);
+    Serial.println(tmp);
     if(tmp > 10){
       // Turn right
+      Serial.println("right");
       mc = right;
       led(led1, ON);
-      m_start = millis();
-      while((millis() - m_start) > tmp*5.56){
-        m1.cw(200);
-        m2.cw(200);
-      }
+      m1.ccw(200);
+      m2.ccw(200);
+      delay(tmp*5.56);
       led(led1, OFF);
       writeSD();
     } else if(tmp < -10){
       // Turn left
+      Serial.println("left");
       mc = left;
       led(led2, ON);
-      m_start = millis();
-      while((millis() - m_start) > tmp*5.56){
-        m1.ccw(200);
-        m2.ccw(200);
-      }
+      m1.cw(200);
+      m2.cw(200);
+      delay(abs(tmp)*5.56);
       led(led2, OFF);
       writeSD();
     } else{
       // do nothing
+      Serial.println("nothing");
       led(led1, ON);
       led(led2, ON);
       delay(500);
@@ -615,7 +624,8 @@ void writeSD(){
   str += flag_acceleration;             str += ",";
   str += flag_timer;                    str += ",";
   str += flag_fire;                     str += ",";
-  str += mc;
+  str += mc;                            str += ",";
+  str += tmp;
   str += "\n";
 
   int len = str.length();
