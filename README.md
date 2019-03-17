@@ -3,9 +3,8 @@ This is repository for Tanegashima Rocket Contest 2019 CanSat Competition.
 
 ## ミッション内容
 
-|カムバック|ローバー型|
-|:---:|:---:|
-|データ所得|GPS測位，加速度，ジャイロ，地磁気，気温，気圧|
+カムバック：ローバー型
+データ所得：GPS測位，加速度，ジャイロ，地磁気，気温，気圧
 
 ## 寸法（パラシュート含まず）
 
