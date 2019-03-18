@@ -25,3 +25,9 @@
 <div align="center">
 <img src="https://raw.githubusercontent.com/ymt117/tane2019/master/Log/%E6%A1%83%E5%A4%AA%E9%83%8E%E3%83%AD%E3%82%B0/2019-3-8/%E6%B8%A9%E5%BA%A6.png" alt="img" width="50%">
 </div>
+
+### 緯度・経度
+
+<div align="center">
+<img src="https://raw.githubusercontent.com/ymt117/tane2019/master/Log/%E6%A1%83%E5%A4%AA%E9%83%8E%E3%83%AD%E3%82%B0/2019-3-8/alt_lng.JPG" alt="img" width="50%">
+</div>
