@@ -7,6 +7,8 @@ This is repository for Tanegashima Rocket Contest 2019 CanSat Competition.
 
 データ所得：GPS測位，加速度，ジャイロ，地磁気，気温，気圧
 
+複数機同時投下
+
 ## 寸法（パラシュート含まず）
 
 1機あたりの寸法
